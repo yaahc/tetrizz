@@ -1,14 +1,16 @@
 use std::collections::BinaryHeap;
 
+use ordered_float::NotNan;
+
 use crate::data::*;
 use crate::eval::Eval;
 use crate::movegen::movegen;
 
 #[derive(Clone, Debug)]
-pub struct Node {
-    pub game: Game,
+struct Node {
+    pub score: NotNan<f32>,
     pub id: usize,
-    pub score: f32,
+    pub game: Game,
 }
 
 impl PartialEq for Node {
@@ -21,13 +23,13 @@ impl Eq for Node {}
 
 impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        other.score.partial_cmp(&self.score)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        other.score.cmp(&self.score)
     }
 }
 
@@ -44,7 +46,15 @@ pub fn search(
         let mut game = root.clone();
         let placement_info = game.advance(queue[0], loc);
         let score = eval.eval(root, &game, &placement_info);
-        insert_if_better(&mut heap, Node { game, id, score }, width);
+        insert_if_better(
+            &mut heap,
+            Node {
+                game,
+                id,
+                score: NotNan::new(score).unwrap(),
+            },
+            width,
+        );
     }
     let mut next_heap: BinaryHeap<Node> = BinaryHeap::with_capacity(width + 1);
     for next in queue.iter().take(depth).skip(1) {
@@ -69,7 +79,7 @@ pub fn search(
                     Node {
                         game,
                         id: node.id,
-                        score,
+                        score: NotNan::new(score).unwrap(),
                     },
                     width,
                 );
