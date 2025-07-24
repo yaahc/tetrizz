@@ -124,11 +124,7 @@ impl Eval {
         let b2b_deficit = game.b2b_deficit;
 
         // remove this in the future
-        let b2b_diff = if game.b2b > root.b2b {
-            game.b2b - root.b2b
-        } else {
-            0
-        };
+        let b2b_diff = game.b2b.saturating_sub(root.b2b);
 
         // final part: add some rng so can encourage exploration
 

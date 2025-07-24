@@ -38,7 +38,7 @@ pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
     let mut fitnesses: Vec<f32> = vec![];
     for _ in 0..GAMES_PLAYED {
         let mut test_queue = queue.clone();
-        let test_hold = hold.clone();
+        let test_hold = hold;
         let mut game = Game::new(Some(test_hold));
         let eval = Eval::from(weights);
         let mut max: u64 = 0;
@@ -134,7 +134,7 @@ pub fn run_genetic_algo() {
                     print!("   --- {scol}Started: {start_prev}/{NUM_AGENTS}\x1b[0m\t\t\x1b[1;33mCompleted: {}/{NUM_AGENTS}\x1b[0m\r", *completed.as_ptr());
                     let _ = std::io::stdout().flush();
                 }
-                agent.fitness = eval_fitness(queue.clone(), hold.clone(), agent.weights);
+                agent.fitness = eval_fitness(queue.clone(), hold, agent.weights);
                 let completed_prev = completed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| Some(x + 1)).unwrap();
                 unsafe {
                     let scol = if *started.as_ptr() != NUM_AGENTS as u32 { "\x1b[1;33m" } else { "\x1b[1;32m" };
@@ -181,7 +181,7 @@ pub fn run_genetic_algo() {
             })
             .collect::<Vec<Agent>>();
 
-        println!("\x1b[1mAll current agents: \x1b[0m{:?}\n", agents);
+        println!("\x1b[1mAll current agents: \x1b[0m{agents:?}\n");
         println!(
             "\x1b[1mBest agent (from current queue): \x1b[0m{:?}\n",
             agents
@@ -193,6 +193,6 @@ pub fn run_genetic_algo() {
                     b
                 })
         );
-        println!("\x1b[1mBest agent: \x1b[0m{:?}", best_agent);
+        println!("\x1b[1mBest agent: \x1b[0m{best_agent:?}");
     }
 }

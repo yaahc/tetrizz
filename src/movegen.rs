@@ -19,13 +19,7 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
     ];
     const PAIRS: [[usize; 3]; 4] = [[1, 2, 3], [0, 2, 3], [0, 1, 3], [0, 1, 2]];
 
-    let now = std::time::Instant::now();
-
-    // println!("start {}", now.elapsed().as_nanos());
-
     let mut maps = ROT.map(|r| CollisionMap::new(board, piece, r));
-
-    // println!("new map {}", now.elapsed().as_nanos());
 
     if piece != Piece::O {
         let mut completed = [false, false, false, false];
@@ -35,7 +29,6 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
                 let last = maps[i2].explored;
                 let all_valid = maps[i2].all_valid;
 
-                // println!("found a filter {}", now.elapsed().as_nanos());
                 if last == all_valid {
                     completed[i2] = true;
                     continue;
@@ -64,12 +57,9 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
                             };
                             p1f[x as usize] &= !c;
                         }
-                        // println!("yekick {}", now.elapsed().as_nanos());
                     }
                 }
-                // println!("spin {}", now.elapsed().as_nanos());
                 maps[i2].floodfill();
-                // println!("floodfill {}", now.elapsed().as_nanos());
                 if maps[i2].explored == last {
                     completed[i2] = true;
                 }
@@ -133,7 +123,7 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
     let actual_spin: Vec<[u64; 10]> = match piece {
         Piece::T => {
             let mut s = [0u64; 10];
-            for x in 0..10 {
+            for (x, item) in s.iter_mut().enumerate() {
                 let left = board.cols.get(x - 1).copied().unwrap_or(FULL_HEIGHT);
                 let right = board.cols.get(x + 1).copied().unwrap_or(FULL_HEIGHT);
 
@@ -142,7 +132,7 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
                 let c3 = right >> 1;
                 let c4 = left >> 1;
 
-                s[x] = (c1 & c2 & (c3 | c4)) | (c3 & c4 & (c1 | c2));
+                *item = (c1 & c2 & (c3 | c4)) | (c3 & c4 & (c1 | c2));
             }
             new_maps
                 .iter()
@@ -169,8 +159,6 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
             })
             .collect(),
     };
-
-    // println!("filtering {}", now.elapsed().as_nanos());
 
     let mut positions: Vec<PieceLocation> = Vec::with_capacity(40);
     for (rot_i, map) in new_maps.iter().enumerate() {
@@ -209,8 +197,6 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
             }
         }
     }
-
-    // println!("all done {}", now.elapsed().as_nanos());
 
     positions
 }
@@ -396,10 +382,7 @@ impl fmt::Display for CollisionMap {
                     })
                     .collect::<Vec<String>>()
                     .join("");
-                format!(
-                    "{}     {}     {}     {}",
-                    obstructed, all_valid, explored, spin_loc
-                )
+                format!("{obstructed}     {all_valid}     {explored}     {spin_loc}")
             })
             .collect::<Vec<String>>();
         write!(f, "Obstructed               All valid                Explored                 Spin location\n{}", outstr.join("\n"))

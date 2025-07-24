@@ -6,7 +6,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let game = Game::new(None);
     c.bench_function("movegen all", |b| {
         b.iter(|| {
-            for p in [Piece::I] {
+            {
+                let p = Piece::I;
                 movegen_piece(&game.board, p);
             }
         })

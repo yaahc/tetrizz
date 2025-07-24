@@ -200,7 +200,7 @@ impl Game {
             b2b: 0,
             b2b_deficit: 0,
         };
-        if !p.is_none() {
+        if p.is_some() {
             game.hold = p.unwrap();
             return game;
         }

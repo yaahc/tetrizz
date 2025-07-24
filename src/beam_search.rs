@@ -46,12 +46,12 @@ pub fn search(
         let score = eval.eval(root, &game, &placement_info);
         insert_if_better(&mut heap, Node { game, id, score }, width);
     }
-    let mut next: BinaryHeap<Node> = BinaryHeap::with_capacity(width + 1);
-    for idx in 1..depth {
+    let mut next_heap: BinaryHeap<Node> = BinaryHeap::with_capacity(width + 1);
+    for next in queue.iter().take(depth).skip(1) {
         for node in &heap {
-            for loc in movegen(&node.game, queue[idx]) {
+            for loc in movegen(&node.game, *next) {
                 let mut game = node.game.clone();
-                let placement_info = game.advance(queue[idx], loc);
+                let placement_info = game.advance(*next, loc);
                 if game
                     .board
                     .cols
@@ -65,7 +65,7 @@ pub fn search(
                 }
                 let score = eval.eval(root, &game, &placement_info);
                 insert_if_better(
-                    &mut next,
+                    &mut next_heap,
                     Node {
                         game,
                         id: node.id,
@@ -75,11 +75,11 @@ pub fn search(
                 );
             }
         }
-        if next.len() == 0 {
+        if next_heap.is_empty() {
             break;
         }
         heap.clear();
-        std::mem::swap(&mut heap, &mut next);
+        std::mem::swap(&mut heap, &mut next_heap);
     }
     search_loc[heap.into_iter().min().unwrap().id]
 }
