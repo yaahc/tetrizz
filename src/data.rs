@@ -16,10 +16,10 @@ pub enum Piece {
 
 #[derive(Serialize, Deserialize, Debug, Hash, PartialEq, Eq, Copy, Clone)]
 pub enum Rotation {
-    Up,
-    Right,
-    Down,
-    Left,
+    North,
+    East,
+    South,
+    West,
 }
 
 #[derive(Serialize, Deserialize, Debug, Hash, PartialEq, Eq, Copy, Clone)]
@@ -74,10 +74,10 @@ pub struct PlacementInfo {
 impl Rotation {
     pub const fn rotate_block(&self, (x, y): (i8, i8)) -> (i8, i8) {
         match self {
-            Rotation::Up => (x, y),
-            Rotation::Right => (y, -x),
-            Rotation::Down => (-x, -y),
-            Rotation::Left => (-y, x),
+            Rotation::North => (x, y),
+            Rotation::East => (y, -x),
+            Rotation::South => (-x, -y),
+            Rotation::West => (-y, x),
         }
     }
 
@@ -92,28 +92,28 @@ impl Rotation {
 
     pub const fn rotate_right(&self) -> Rotation {
         match self {
-            Rotation::Up => Rotation::Right,
-            Rotation::Right => Rotation::Down,
-            Rotation::Down => Rotation::Left,
-            Rotation::Left => Rotation::Up,
+            Rotation::North => Rotation::East,
+            Rotation::East => Rotation::South,
+            Rotation::South => Rotation::West,
+            Rotation::West => Rotation::North,
         }
     }
 
     pub const fn rotate_left(&self) -> Rotation {
         match self {
-            Rotation::Up => Rotation::Left,
-            Rotation::Left => Rotation::Down,
-            Rotation::Down => Rotation::Right,
-            Rotation::Right => Rotation::Up,
+            Rotation::North => Rotation::West,
+            Rotation::West => Rotation::South,
+            Rotation::South => Rotation::East,
+            Rotation::East => Rotation::North,
         }
     }
 
     pub const fn rotate_180(&self) -> Rotation {
         match self {
-            Rotation::Up => Rotation::Down,
-            Rotation::Right => Rotation::Left,
-            Rotation::Down => Rotation::Up,
-            Rotation::Left => Rotation::Right,
+            Rotation::North => Rotation::South,
+            Rotation::East => Rotation::West,
+            Rotation::South => Rotation::North,
+            Rotation::West => Rotation::East,
         }
     }
 }
@@ -153,7 +153,7 @@ macro_rules! piece_lut {
 
 macro_rules! rotation_lut {
     ($v:ident => $e:expr) => {
-        lutify!(($e) for $v in [Rotation::Up, Rotation::Right, Rotation::Down, Rotation::Left])
+        lutify!(($e) for $v in [Rotation::North, Rotation::East, Rotation::South, Rotation::West])
     };
 }
 

@@ -7,7 +7,7 @@ use crate::eval::Eval;
 use crate::movegen::movegen;
 
 #[derive(Clone, Debug)]
-struct Node {
+pub struct Node {
     pub score: NotNan<f32>,
     pub id: usize,
     pub game: Game,
@@ -36,15 +36,14 @@ impl Ord for Node {
 
 // why are there two heaps? How does info not get left behind in one heap or the other?
 // we are clearing the old one before we swap, then building placements ontop of it
-pub fn search(
+pub fn search_results(
     root: &Game,
+    search_loc: &[PieceLocation],
     queue: Vec<Piece>,
     eval: &Eval,
     depth: usize,
     width: usize,
-) -> PieceLocation {
-    // we get the locations for the next piece in the queue
-    let search_loc = movegen(root, queue[0]);
+) -> BinaryHeap<Node> {
     let mut heap: BinaryHeap<Node> = BinaryHeap::with_capacity(width + 1);
     // for each piece placement available for the next piece, insert into heap if the score is high
     // enough to justify insertion
@@ -104,27 +103,22 @@ pub fn search(
         heap.clear();
         std::mem::swap(&mut heap, &mut next_heap);
     }
-    let mut spins = vec![];
-    for node in heap.iter() {
-        for (ind, (m, placement_info)) in node.moves.iter().enumerate() {
-            if m.spun && placement_info.lines_cleared > 0 {
-                let multiplier = if m.piece == Piece::T { 2 } else { 1 };
-                spins.push((
-                    placement_info.lines_cleared * multiplier,
-                    m.piece,
-                    placement_info.lines_cleared,
-                    ind,
-                ));
-            }
-        }
-    }
-    spins.sort_by_key(|s| s.0);
-    for spin in spins.into_iter().rev().take(10) {
-        eprintln!(
-            "{:?} spin in {} pieces clearing {} lines",
-            spin.1, spin.3, spin.2
-        );
-    }
+
+    heap
+}
+
+// why are there two heaps? How does info not get left behind in one heap or the other?
+// we are clearing the old one before we swap, then building placements ontop of it
+pub fn search(
+    root: &Game,
+    queue: Vec<Piece>,
+    eval: &Eval,
+    depth: usize,
+    width: usize,
+) -> PieceLocation {
+    // we get the locations for the next piece in the queue
+    let search_loc = movegen(root, queue[0]);
+    let heap = search_results(root, &search_loc, queue, eval, depth, width);
 
     search_loc[heap.into_iter().min().unwrap().id]
 }

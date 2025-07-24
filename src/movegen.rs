@@ -12,10 +12,10 @@ pub fn movegen(game: &Game, next: Piece) -> Vec<PieceLocation> {
 
 pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
     const ROT: [Rotation; 4] = [
-        Rotation::Up,
-        Rotation::Right,
-        Rotation::Down,
-        Rotation::Left,
+        Rotation::North,
+        Rotation::East,
+        Rotation::South,
+        Rotation::West,
     ];
     const PAIRS: [[usize; 3]; 4] = [[1, 2, 3], [0, 2, 3], [0, 1, 3], [0, 1, 2]];
 
@@ -78,18 +78,18 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
 
     if piece == Piece::S || piece == Piece::Z {
         for x in 0..10 {
-            // down to up
-            new_maps[Rotation::Up as usize].explored[x] |=
-                new_maps[Rotation::Down as usize].explored[x] >> 1;
-            new_maps[Rotation::Up as usize].spin_loc[x] |=
-                new_maps[Rotation::Down as usize].spin_loc[x] >> 1;
-            // left to right
-            new_maps[Rotation::Right as usize].explored[x] |= new_maps[Rotation::Left as usize]
+            // South to North
+            new_maps[Rotation::North as usize].explored[x] |=
+                new_maps[Rotation::South as usize].explored[x] >> 1;
+            new_maps[Rotation::North as usize].spin_loc[x] |=
+                new_maps[Rotation::South as usize].spin_loc[x] >> 1;
+            // West to East
+            new_maps[Rotation::East as usize].explored[x] |= new_maps[Rotation::West as usize]
                 .explored
                 .get(x + 1)
                 .copied()
                 .unwrap_or(0);
-            new_maps[Rotation::Right as usize].spin_loc[x] |= new_maps[Rotation::Left as usize]
+            new_maps[Rotation::East as usize].spin_loc[x] |= new_maps[Rotation::West as usize]
                 .spin_loc
                 .get(x + 1)
                 .copied()
@@ -98,22 +98,22 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
         new_maps.truncate(2);
     } else if piece == Piece::I {
         for x in 0..10 {
-            // down to up
-            new_maps[Rotation::Up as usize].explored[x] |= new_maps[Rotation::Down as usize]
+            // South to North
+            new_maps[Rotation::North as usize].explored[x] |= new_maps[Rotation::South as usize]
                 .explored
                 .get(x + 1)
                 .copied()
                 .unwrap_or(0);
-            new_maps[Rotation::Up as usize].spin_loc[x] |= new_maps[Rotation::Down as usize]
+            new_maps[Rotation::North as usize].spin_loc[x] |= new_maps[Rotation::South as usize]
                 .spin_loc
                 .get(x + 1)
                 .copied()
                 .unwrap_or(0);
-            // left to right
-            new_maps[Rotation::Right as usize].explored[x] |=
-                new_maps[Rotation::Left as usize].explored[x] << 1;
-            new_maps[Rotation::Right as usize].spin_loc[x] |=
-                new_maps[Rotation::Left as usize].spin_loc[x] << 1;
+            // West to East
+            new_maps[Rotation::East as usize].explored[x] |=
+                new_maps[Rotation::West as usize].explored[x] << 1;
+            new_maps[Rotation::East as usize].spin_loc[x] |=
+                new_maps[Rotation::West as usize].spin_loc[x] << 1;
         }
         new_maps.truncate(2);
     } else if piece == Piece::O {
@@ -124,13 +124,13 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
         Piece::T => {
             let mut s = [0u64; 10];
             for (x, item) in s.iter_mut().enumerate() {
-                let left = board.cols.get(x - 1).map(|c| c.0).unwrap_or(FULL_HEIGHT);
-                let right = board.cols.get(x + 1).map(|c| c.0).unwrap_or(FULL_HEIGHT);
+                let west = board.cols.get(x - 1).map(|c| c.0).unwrap_or(FULL_HEIGHT);
+                let east = board.cols.get(x + 1).map(|c| c.0).unwrap_or(FULL_HEIGHT);
 
-                let c1 = left << 1 | 1;
-                let c2 = right << 1 | 1;
-                let c3 = right >> 1;
-                let c4 = left >> 1;
+                let c1 = west << 1 | 1;
+                let c2 = east << 1 | 1;
+                let c3 = east >> 1;
+                let c4 = west >> 1;
 
                 *item = (c1 & c2 & (c3 | c4)) | (c3 & c4 & (c1 | c2));
             }
@@ -205,55 +205,67 @@ const fn kicks(piece: Piece, from: Rotation, to: Rotation) -> [(i8, i8); 6] {
     match piece {
         Piece::O => [(0, 0); 6], // just be careful not to rotate the O piece at all lol
         Piece::I => match (from, to) {
-            (Rotation::Right, Rotation::Up) => {
+            (Rotation::East, Rotation::North) => {
                 [(-1, 0), (-2, 0), (1, 0), (-2, -2), (1, 1), (-1, 0)]
             }
-            (Rotation::Right, Rotation::Down) => {
+            (Rotation::East, Rotation::South) => {
                 [(0, -1), (-1, -1), (2, -1), (-1, 1), (2, -2), (0, -1)]
             }
-            (Rotation::Right, Rotation::Left) => {
+            (Rotation::East, Rotation::West) => {
                 [(-1, -1), (0, -1), (-1, -1), (-1, -1), (-1, -1), (-1, -1)]
             }
-            (Rotation::Down, Rotation::Up) => {
+            (Rotation::South, Rotation::North) => {
                 [(-1, 1), (-1, 0), (-1, 1), (-1, 1), (-1, 1), (-1, 1)]
             }
-            (Rotation::Down, Rotation::Right) => {
+            (Rotation::South, Rotation::East) => {
                 [(0, 1), (-2, 1), (1, 1), (-2, 2), (1, -1), (0, 1)]
             }
-            (Rotation::Down, Rotation::Left) => {
+            (Rotation::South, Rotation::West) => {
                 [(-1, 0), (1, 0), (-2, 0), (1, 1), (-2, -2), (-1, 0)]
             }
-            (Rotation::Left, Rotation::Up) => [(0, 1), (1, 1), (-2, 1), (1, -1), (-2, 2), (0, 1)],
-            (Rotation::Left, Rotation::Right) => [(1, 1), (0, 1), (1, 1), (1, 1), (1, 1), (1, 1)],
-            (Rotation::Left, Rotation::Down) => [(1, 0), (2, 0), (-1, 0), (2, 2), (-1, -1), (1, 0)],
-            (Rotation::Up, Rotation::Right) => [(1, 0), (2, 0), (-1, 0), (-1, -1), (2, 2), (1, 0)],
-            (Rotation::Up, Rotation::Left) => {
+            (Rotation::West, Rotation::North) => {
+                [(0, 1), (1, 1), (-2, 1), (1, -1), (-2, 2), (0, 1)]
+            }
+            (Rotation::West, Rotation::East) => [(1, 1), (0, 1), (1, 1), (1, 1), (1, 1), (1, 1)],
+            (Rotation::West, Rotation::South) => {
+                [(1, 0), (2, 0), (-1, 0), (2, 2), (-1, -1), (1, 0)]
+            }
+            (Rotation::North, Rotation::East) => {
+                [(1, 0), (2, 0), (-1, 0), (-1, -1), (2, 2), (1, 0)]
+            }
+            (Rotation::North, Rotation::West) => {
                 [(0, -1), (-1, -1), (2, -1), (2, -2), (-1, 1), (0, -1)]
             }
-            (Rotation::Up, Rotation::Down) => [(1, -1), (1, 0), (1, -1), (1, -1), (1, -1), (1, -1)],
+            (Rotation::North, Rotation::South) => {
+                [(1, -1), (1, 0), (1, -1), (1, -1), (1, -1), (1, -1)]
+            }
             _ => panic!(), // this should never happen lol
         },
         _ => match (from, to) {
-            (Rotation::Right, Rotation::Up) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2), (0, 0)],
-            (Rotation::Right, Rotation::Down) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2), (0, 0)],
-            (Rotation::Right, Rotation::Left) => [(0, 0), (1, 0), (1, 2), (1, 1), (0, 2), (0, 1)],
-            (Rotation::Down, Rotation::Up) => [(0, 0), (0, -1), (-1, -1), (1, -1), (-1, 0), (1, 0)],
-            (Rotation::Down, Rotation::Right) => {
+            (Rotation::East, Rotation::North) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2), (0, 0)],
+            (Rotation::East, Rotation::South) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2), (0, 0)],
+            (Rotation::East, Rotation::West) => [(0, 0), (1, 0), (1, 2), (1, 1), (0, 2), (0, 1)],
+            (Rotation::South, Rotation::North) => {
+                [(0, 0), (0, -1), (-1, -1), (1, -1), (-1, 0), (1, 0)]
+            }
+            (Rotation::South, Rotation::East) => {
                 [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2), (0, 0)]
             }
-            (Rotation::Down, Rotation::Left) => [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2), (0, 0)],
-            (Rotation::Left, Rotation::Up) => [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2), (0, 0)],
-            (Rotation::Left, Rotation::Right) => {
-                [(0, 0), (-1, 0), (-1, 2), (-1, 1), (0, 2), (0, 1)]
-            }
-            (Rotation::Left, Rotation::Down) => {
+            (Rotation::South, Rotation::West) => [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2), (0, 0)],
+            (Rotation::West, Rotation::North) => {
                 [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2), (0, 0)]
             }
-            (Rotation::Up, Rotation::Right) => {
+            (Rotation::West, Rotation::East) => [(0, 0), (-1, 0), (-1, 2), (-1, 1), (0, 2), (0, 1)],
+            (Rotation::West, Rotation::South) => {
+                [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2), (0, 0)]
+            }
+            (Rotation::North, Rotation::East) => {
                 [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2), (0, 0)]
             }
-            (Rotation::Up, Rotation::Left) => [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2), (0, 0)],
-            (Rotation::Up, Rotation::Down) => [(0, 0), (0, 1), (1, 1), (-1, 1), (1, 0), (-1, 0)],
+            (Rotation::North, Rotation::West) => [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2), (0, 0)],
+            (Rotation::North, Rotation::South) => {
+                [(0, 0), (0, 1), (1, 1), (-1, 1), (1, 0), (-1, 0)]
+            }
             _ => panic!(), // this should never happen lol
         },
     }
