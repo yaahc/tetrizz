@@ -65,8 +65,8 @@ pub fn search(
                 if game
                     .board
                     .cols
-                    .iter()
-                    .map(|x| 64 - x.leading_zeros() as i8)
+                    .into_iter()
+                    .map(Column::height)
                     .max()
                     .unwrap()
                     > 16

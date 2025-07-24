@@ -75,7 +75,7 @@ fn main() {
         for y in (0..20).rev() {
             let mut vstr = String::new();
             for x in 0..10 {
-                vstr.push_str(if (game.board.cols[x as usize] & (1 << y)) > 0 {
+                vstr.push_str(if (game.board.cols[x as usize].0 & 1 << y) > 0 {
                     "🟩"
                 } else if loc.blocks().iter().any(|(bx, by)| *bx == x && *by == y) {
                     if loc.spun {
@@ -116,8 +116,8 @@ fn main() {
         if game
             .board
             .cols
-            .iter()
-            .map(|col| 64 - col.leading_zeros())
+            .into_iter()
+            .map(Column::height)
             .max()
             .unwrap()
             > 18

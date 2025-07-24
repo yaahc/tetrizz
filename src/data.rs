@@ -1,3 +1,5 @@
+// use std::ops::{BitAnd, BitOr};
+
 use rand::prelude::IndexedRandom;
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +34,27 @@ pub struct PieceLocation {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Board {
-    pub cols: [u64; 10],
+    pub cols: [Column; 10],
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Column(pub u64);
+
+impl Column {
+    #[inline]
+    pub fn height(self) -> u8 {
+        64 - self.0.leading_zeros() as u8
+    }
+
+    fn clear(&mut self, mut lines: u64) {
+        while lines != 0 {
+            let i = lines.trailing_zeros();
+            let mask = (1 << i) - 1;
+            self.0 = self.0 & mask | self.0 >> 1 & !mask;
+            lines &= !(1 << i);
+            lines >>= 1;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -161,7 +183,7 @@ impl Board {
     pub fn place(&mut self, loc: PieceLocation) -> PlacementInfo {
         let spin = loc.spun;
         for &(x, y) in &loc.blocks() {
-            self.cols[x as usize] |= 1 << y;
+            self.cols[x as usize].0 |= 1 << y;
         }
         let line_mask = match loc.possible_line_clear {
             true => self.remove_lines(),
@@ -174,28 +196,20 @@ impl Board {
     }
 
     pub fn remove_lines(&mut self) -> u64 {
-        let lines = self.cols.iter().fold(!0, |a, b| a & b);
+        let lines = self.cols.iter().fold(!0, |a, b| a & b.0);
         for c in &mut self.cols {
-            clear_lines(c, lines);
+            c.clear(lines);
         }
         lines
-    }
-}
-
-fn clear_lines(col: &mut u64, mut lines: u64) {
-    while lines != 0 {
-        let i = lines.trailing_zeros();
-        let mask = (1 << i) - 1;
-        *col = *col & mask | *col >> 1 & !mask;
-        lines &= !(1 << i);
-        lines >>= 1;
     }
 }
 
 impl Game {
     pub fn new(p: Option<Piece>) -> Self {
         let mut game = Self {
-            board: Board { cols: [0; 10] },
+            board: Board {
+                cols: [Column(0); 10],
+            },
             hold: Piece::Z, // placeholder
             b2b: 0,
             b2b_deficit: 0,

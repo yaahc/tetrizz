@@ -148,7 +148,18 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     ];
     let eval = Eval::from([1.0; 14]);
     let mut game = Game::new(Some(hold));
-    game.board.cols = [2047, 1023, 511, 0, 0, 340, 8062, 16383, 5119, 2047];
+    game.board.cols = [
+        Column(2047),
+        Column(1023),
+        Column(511),
+        Column(0),
+        Column(0),
+        Column(340),
+        Column(8062),
+        Column(16383),
+        Column(5119),
+        Column(2047),
+    ];
     c.bench_function("beam search test", |b| {
         b.iter(|| {
             search(

@@ -41,7 +41,7 @@ impl Eval {
     // new eval, largely copied from cc2 :3 (sorry mk im still learning)
     pub fn eval(&self, root: &Game, game: &Game, info: &PlacementInfo) -> f32 {
         // height
-        let heights: [i32; 10] = game.board.cols.map(|c| 64 - c.leading_zeros() as i32);
+        let heights: [i32; 10] = game.board.cols.map(|c| c.height() as _);
 
         let max_height = *heights.iter().max().unwrap();
         let max_height_half = max_height.max(10) - 10;
@@ -53,18 +53,18 @@ impl Eval {
             .cols
             .iter()
             .map(|&c| {
-                let h = 64 - c.leading_zeros();
+                let h = 64 - c.0.leading_zeros();
                 let under = (1 << h) - 1;
-                (!c & under).count_ones()
+                (!c.0 & under).count_ones()
             })
             .sum::<u32>();
 
         // coveredness
         let mut coveredness = 0;
         for &c in &game.board.cols {
-            let h = 64 - c.leading_zeros();
+            let h = 64 - c.0.leading_zeros();
             let under = (1 << h) - 1;
-            let mut holes = !c & under;
+            let mut holes = !c.0 & under;
             while holes != 0 {
                 let y = holes.trailing_zeros();
                 coveredness += h - y;
@@ -77,7 +77,7 @@ impl Eval {
             .board
             .cols
             .windows(2)
-            .map(|c| (c[0] ^ c[1]).count_ones())
+            .map(|c| (c[0].0 ^ c[1].0).count_ones())
             .sum::<u32>();
 
         // 4 line depth
@@ -94,8 +94,8 @@ impl Eval {
             .iter()
             .enumerate()
             .filter(|&(i, _)| i != w_col)
-            .fold(!0, |a, (_, b)| a & b);
-        let depth4 = (almost_full_lines >> w_height).trailing_ones();
+            .fold(!0, |a, (_, b)| a & b.0);
+        let depth4 = (almost_full_lines >> w_height.0).trailing_ones();
 
         // dependencies, spikes
 

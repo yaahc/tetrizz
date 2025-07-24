@@ -124,8 +124,8 @@ pub fn movegen_piece(board: &Board, piece: Piece) -> Vec<PieceLocation> {
         Piece::T => {
             let mut s = [0u64; 10];
             for (x, item) in s.iter_mut().enumerate() {
-                let left = board.cols.get(x - 1).copied().unwrap_or(FULL_HEIGHT);
-                let right = board.cols.get(x + 1).copied().unwrap_or(FULL_HEIGHT);
+                let left = board.cols.get(x - 1).map(|c| c.0).unwrap_or(FULL_HEIGHT);
+                let right = board.cols.get(x + 1).map(|c| c.0).unwrap_or(FULL_HEIGHT);
 
                 let c1 = left << 1 | 1;
                 let c2 = right << 1 | 1;
@@ -275,7 +275,7 @@ impl CollisionMap {
                 let c = board
                     .cols
                     .get((x + dx) as usize)
-                    .copied()
+                    .map(|c| c.0)
                     .unwrap_or(FULL_HEIGHT);
                 let c = match dy < 0 {
                     true => !(!c << -dy),
@@ -285,12 +285,7 @@ impl CollisionMap {
             }
         }
 
-        let max_height = board
-            .cols
-            .iter()
-            .map(|x| 64 - x.leading_zeros() as i8)
-            .max()
-            .unwrap();
+        let max_height = board.cols.into_iter().map(Column::height).max().unwrap();
         let mut all_valid: [u64; 10] = [(1 << (max_height + 3)) - 1; 10];
         let mut explored = [1 << (max_height + 2); 10];
         for x in 0..10 {

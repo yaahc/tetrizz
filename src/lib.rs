@@ -12,7 +12,18 @@ mod tests {
     #[test]
     fn movegen() {
         let mut game = Game::new(None);
-        game.board.cols = [7, 127, 31, 31, 31, 1, 0, 15, 15, 15];
+        game.board.cols = [
+            Column(7),
+            Column(127),
+            Column(31),
+            Column(31),
+            Column(31),
+            Column(1),
+            Column(0),
+            Column(15),
+            Column(15),
+            Column(15),
+        ];
         println!(
             "{:?}",
             movegen_piece(&game.board, Piece::T)

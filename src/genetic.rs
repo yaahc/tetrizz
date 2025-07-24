@@ -52,8 +52,8 @@ pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
             if game
                 .board
                 .cols
-                .iter()
-                .map(|col| 64 - col.leading_zeros())
+                .into_iter()
+                .map(Column::height)
                 .max()
                 .unwrap()
                 > 15
