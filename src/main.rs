@@ -44,7 +44,7 @@ fn append_queue(queue: &mut Vec<Piece>, bags: u32) {
 
 fn main() {
     let (test_hold, mut test_queue) = gen_queue(50);
-    let eval = Eval::from([
+    let eval = Eval::new(
         -79.400375,
         -55.564907,
         -125.680145,
@@ -59,7 +59,7 @@ fn main() {
         -104.59018,
         -496.8832,
         458.29822,
-    ]);
+    );
     let mut game = Game::new(Some(test_hold));
 
     let mut all_locations: Vec<PieceLocation> = vec![];
@@ -68,7 +68,7 @@ fn main() {
         if test_queue.len() < 50 {
             append_queue(&mut test_queue, 10);
         }
-        let loc = search(&game, test_queue.clone(), &eval, 10, 3000);
+        let loc = search(&game, test_queue.clone(), &eval, 7, 30000);
         all_locations.push(loc);
 
         let mut outstr: Vec<String> = vec![];

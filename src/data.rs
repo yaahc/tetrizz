@@ -65,7 +65,7 @@ pub struct Game {
     pub b2b_deficit: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PlacementInfo {
     pub spin: bool,
     pub lines_cleared: u32,

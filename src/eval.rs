@@ -19,6 +19,40 @@ pub struct Eval {
 }
 
 impl Eval {
+    pub fn new(
+        max_height: f32,
+        max_height_half: f32,
+        max_height_quarter: f32,
+        total_holes: f32,
+        coveredness: f32,
+        row_transitions: f32,
+        depth4: f32,
+        dependencies: f32,
+        i_dependencies: f32,
+        spikes: f32,
+        concavity: f32,
+        b2b_clear: f32,
+        b2b_deficit: f32,
+        b2b_diff: f32,
+    ) -> Self {
+        Self {
+            max_height,
+            max_height_half,
+            max_height_quarter,
+            total_holes,
+            coveredness,
+            row_transitions,
+            depth4,
+            dependencies,
+            i_dependencies,
+            spikes,
+            concavity,
+            b2b_clear,
+            b2b_deficit,
+            b2b_diff,
+        }
+    }
+
     pub fn from(arr: [f32; 14]) -> Self {
         Self {
             max_height: arr[0],
@@ -146,6 +180,7 @@ impl Eval {
         let mut rng = rand::rng();
         let noise = 0.03 * rng.random_range(-res.abs()..=res.abs());
 
+        // higher is better
         res + noise
     }
 }
