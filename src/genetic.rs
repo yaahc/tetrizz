@@ -34,6 +34,7 @@ fn gen_queue(bags: u32) -> (Piece, Vec<Piece>) {
 pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
     const GAMES_PLAYED: usize = 4;
     const MOVES_MADE: usize = 500;
+    let mut garbage_sent = 0;
 
     let mut fitnesses: Vec<f32> = vec![];
     for _ in 0..GAMES_PLAYED {
@@ -44,11 +45,52 @@ pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
         let mut max: u64 = 0;
         for _ in 0..MOVES_MADE {
             let loc = search(&game, test_queue.clone(), &eval, 15, 3000);
-            game.advance(test_queue[0], loc);
+            let place_info = game.advance(test_queue[0], loc);
             if loc.piece == game.hold {
                 game.hold = test_queue[0];
             }
             test_queue.remove(0);
+
+            // how much garbage was sent
+            if place_info.lines_cleared > 0 {
+                let mut garbage = match place_info.lines_cleared {
+                    // single
+                    1 if !loc.spun => 0,
+                    // double
+                    2 if !loc.spun => 1,
+                    // triple
+                    3 if !loc.spun => 2,
+                    // quad
+                    4 => 4,
+                    // mini-spin single
+                    1 if loc.spun && loc.piece != Piece::T => 0,
+                    // mini-spin double
+                    2 if loc.spun && loc.piece != Piece::T => 1,
+                    // mini-spin triple
+                    3 if loc.spun && loc.piece != Piece::T => 2,
+                    // spin single TODO doesn't yet account for T mini-spins
+                    1 if loc.spun && loc.piece == Piece::T => 2,
+                    // spin double
+                    2 if loc.spun && loc.piece == Piece::T => 4,
+                    // spin triple
+                    3 if loc.spun && loc.piece == Piece::T => 6,
+                    _ => unreachable!(),
+                };
+                if game.b2b > 0 {
+                    garbage += 1
+                }
+                let mut garbage = match garbage {
+                    0 => (1.0 + 1.25 * game.combo as f64).ln().floor(),
+                    _ => garbage as f64 * (1.0 + 0.25 * game.combo as f64),
+                } as u32;
+                // TODO: add garbage clear bonus here, after combo
+                // TODO add all clear bonus
+                if game.board.cols.iter().all(|c| c.0 == 0) {
+                    garbage += 5;
+                }
+                garbage_sent += garbage;
+            }
+
             if game
                 .board
                 .cols
@@ -64,9 +106,10 @@ pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
                 max = game.b2b;
             }
         }
-        fitnesses.push(250.0 * max as f32 / MOVES_MADE as f32);
+        // fitnesses.push(250.0 * max as f32 / MOVES_MADE as f32);
     }
-    fitnesses.iter().sum::<f32>() / GAMES_PLAYED as f32
+    // fitnesses.iter().sum::<f32>() / GAMES_PLAYED as f32
+    garbage_sent as _
 }
 
 pub fn normalized(weights: [f32; 14]) -> [f32; 14] {

@@ -62,6 +62,7 @@ pub struct Game {
     pub board: Board,
     pub hold: Piece,
     pub b2b: u64,
+    pub combo: u64,
     pub b2b_deficit: u32,
 }
 
@@ -213,6 +214,7 @@ impl Game {
             hold: Piece::Z, // placeholder
             b2b: 0,
             b2b_deficit: 0,
+            combo: 0,
         };
         if p.is_some() {
             game.hold = p.unwrap();
@@ -246,6 +248,9 @@ impl Game {
             } else {
                 self.b2b = 0;
             }
+            self.combo += 1;
+        } else {
+            self.combo = 0;
         }
         info
     }
