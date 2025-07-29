@@ -32,12 +32,12 @@ pub struct PieceLocation {
     pub possible_line_clear: bool,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Board {
     pub cols: [Column; 10],
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Column(pub u64);
 
 impl Column {
@@ -70,6 +70,7 @@ pub struct Game {
 pub struct PlacementInfo {
     pub spin: bool,
     pub lines_cleared: u32,
+    pub garbage_sent: u32,
 }
 
 impl Rotation {
@@ -181,7 +182,7 @@ impl PieceLocation {
 }
 
 impl Board {
-    pub fn place(&mut self, loc: PieceLocation) -> PlacementInfo {
+    fn place(&mut self, loc: PieceLocation) -> PlacementInfo {
         let spin = loc.spun;
         for &(x, y) in &loc.blocks() {
             self.cols[x as usize].0 |= 1 << y;
@@ -190,9 +191,35 @@ impl Board {
             true => self.remove_lines(),
             false => 0,
         };
+        let lines_cleared = line_mask.count_ones();
+        let garbage_sent = match lines_cleared {
+            0 => 0,
+            // single
+            1 if !loc.spun => 0,
+            // double
+            2 if !loc.spun => 1,
+            // triple
+            3 if !loc.spun => 2,
+            // quad
+            4 => 4,
+            // mini-spin single
+            1 if loc.spun && loc.piece != Piece::T => 0,
+            // mini-spin double
+            2 if loc.spun && loc.piece != Piece::T => 1,
+            // mini-spin triple
+            3 if loc.spun && loc.piece != Piece::T => 2,
+            // spin single TODO doesn't yet account for T mini-spins, always assume mini
+            1 if loc.spun && loc.piece == Piece::T => 0,
+            // spin double
+            2 if loc.spun && loc.piece == Piece::T => 4,
+            // spin triple
+            3 if loc.spun && loc.piece == Piece::T => 6,
+            _ => unreachable!(),
+        };
         PlacementInfo {
             spin,
-            lines_cleared: line_mask.count_ones(),
+            lines_cleared,
+            garbage_sent,
         }
     }
 
@@ -202,6 +229,13 @@ impl Board {
             c.clear(lines);
         }
         lines
+    }
+
+    pub(crate) fn max_height_col(&self) -> u8 {
+        self.cols
+            .into_iter()
+            .fold(Column(0), |cum, col| Column(cum.0 | col.0))
+            .height()
     }
 }
 
@@ -240,18 +274,38 @@ impl Game {
         if loc.piece != next {
             self.hold = next;
         }
-        let info = self.board.place(loc);
+        let mut info = self.board.place(loc);
+        let all_clear = 0u64 == self.board.cols.iter().map(|&c| c.0).sum();
+        self.b2b_deficit += 1;
+        let mut surge: u32 = 0;
         if info.lines_cleared > 0 {
-            if info.spin || info.lines_cleared == 4 {
+            if info.spin || info.lines_cleared == 4 || all_clear {
                 self.b2b += 1;
                 self.b2b_deficit = 0;
             } else {
+                if self.b2b > 4 {
+                    surge = self.b2b as u32;
+                }
                 self.b2b = 0;
             }
             self.combo += 1;
+            if self.b2b > 0 {
+                info.garbage_sent += 1
+            }
         } else {
             self.combo = 0;
         }
+        let mut garbage_sent = match info.garbage_sent {
+            0 => (1.0 + 1.25 * self.combo as f64).ln().floor(),
+            _ => info.garbage_sent as f64 * (1.0 + 0.25 * self.combo as f64),
+        } as u32;
+        // TODO: add garbage clear bonus here, after combo
+        // TODO add all clear bonus
+        if all_clear {
+            garbage_sent += 5;
+        }
+        info.garbage_sent = garbage_sent;
+        info.garbage_sent += surge;
         info
     }
 }

@@ -1,6 +1,7 @@
 use std::collections::BinaryHeap;
 
 use ordered_float::NotNan;
+// use std::collections::BTreeSet;
 
 use crate::data::*;
 use crate::eval::Eval;
@@ -11,7 +12,7 @@ pub struct Node {
     pub score: NotNan<f32>,
     pub id: usize,
     pub game: Game,
-    pub moves: im::Vector<(PieceLocation, PlacementInfo)>,
+    // pub moves: im::Vector<(PieceLocation, PlacementInfo)>,
 }
 
 impl PartialEq for Node {
@@ -50,14 +51,14 @@ pub fn search_results(
     for (id, &loc) in search_loc.iter().enumerate() {
         let mut game = root.clone();
         let placement_info = game.advance(queue[0], loc);
-        let score = eval.eval(root, &game, &placement_info);
+        let score = eval.eval(&game, loc.piece, &placement_info);
         insert_if_better(
             &mut heap,
             Node {
                 game,
                 id,
                 score: NotNan::new(score).unwrap(),
-                moves: im::vector![(loc, placement_info)],
+                // moves: im::vector![(loc, placement_info)],
             },
             width,
         );
@@ -66,32 +67,31 @@ pub fn search_results(
     // then, for every other piece in the queue
     for next in queue.iter().take(depth).skip(1) {
         // for each placement based on the first piece
+        // let mut seen: BTreeSet<Board> = BTreeSet::default();
+        // let mut skipped = 0;
         for node in &heap {
             // find subsequent placements, and for each
             for loc in movegen(&node.game, *next) {
                 let mut game = node.game.clone();
                 let placement_info = game.advance(*next, loc);
-                if game
-                    .board
-                    .cols
-                    .into_iter()
-                    .map(Column::height)
-                    .max()
-                    .unwrap()
-                    > 16
-                {
+                // let not_seen = seen.insert(game.board);
+                // if !not_seen {
+                //     skipped += 1;
+                //     continue;
+                // }
+                if game.board.max_height_col() > 16 {
                     continue;
                 }
-                let score = eval.eval(root, &game, &placement_info);
-                let mut moves = node.moves.clone();
-                moves.push_back((loc, placement_info));
+                let score = eval.eval(&game, loc.piece, &placement_info);
+                // let mut moves = node.moves.clone();
+                // moves.push_back((loc, placement_info));
                 insert_if_better(
                     &mut next_heap,
                     Node {
                         game,
                         id: node.id,
-                        score: NotNan::new(score).unwrap(),
-                        moves,
+                        score: NotNan::new(score).unwrap() + node.score,
+                        // moves,
                     },
                     width,
                 );
@@ -100,6 +100,7 @@ pub fn search_results(
         if next_heap.is_empty() {
             break;
         }
+        // dbg!(skipped);
         heap.clear();
         std::mem::swap(&mut heap, &mut next_heap);
     }

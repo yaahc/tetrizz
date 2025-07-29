@@ -2,23 +2,27 @@ use crate::data::*;
 use rand::Rng;
 
 pub struct Eval {
-    max_height: f32,
-    max_height_half: f32,
-    max_height_quarter: f32,
-    total_holes: f32,
-    coveredness: f32,
-    row_transitions: f32,
-    depth4: f32,
-    dependencies: f32,
-    i_dependencies: f32,
-    spikes: f32,
-    concavity: f32,
-    b2b_clear: f32,
-    b2b_deficit: f32,
-    b2b_diff: f32,
+    pub max_height: f32,
+    pub max_height_half: f32,
+    pub max_height_quarter: f32,
+    pub total_holes: f32,
+    pub coveredness: f32,
+    pub row_transitions: f32,
+    pub depth4: f32,
+    pub dependencies: f32,
+    pub i_dependencies: f32,
+    pub spikes: f32,
+    pub concavity: f32,
+    pub waste_t: f32,
+    pub tst: f32,
+    pub tsd: f32,
+    pub garbage_efficiency: f32,
+    pub combo: f32,
+    pub well_column: [f32; 10],
 }
 
 impl Eval {
+    pub const PARAMS: usize = 16;
     pub fn new(
         max_height: f32,
         max_height_half: f32,
@@ -31,10 +35,20 @@ impl Eval {
         i_dependencies: f32,
         spikes: f32,
         concavity: f32,
-        b2b_clear: f32,
-        b2b_deficit: f32,
-        b2b_diff: f32,
+        waste_t: f32,
+        tst: f32,
+        tsd: f32,
+        garbage_efficiency: f32,
+        combo: f32,
+        half_well_column: [f32; 5],
     ) -> Self {
+        let mut well_column = [0.0; 10];
+        let mut rev_half_well_column = half_well_column.clone();
+        let (left, right) = well_column.split_at_mut(half_well_column.len());
+        rev_half_well_column.reverse();
+        left.copy_from_slice(&half_well_column);
+        right.copy_from_slice(&rev_half_well_column);
+
         Self {
             max_height,
             max_height_half,
@@ -47,53 +61,57 @@ impl Eval {
             i_dependencies,
             spikes,
             concavity,
-            b2b_clear,
-            b2b_deficit,
-            b2b_diff,
+            waste_t,
+            tsd,
+            tst,
+            garbage_efficiency,
+            combo,
+            well_column,
         }
     }
 
-    pub fn from(arr: [f32; 14]) -> Self {
-        Self {
-            max_height: arr[0],
-            max_height_half: arr[1],
-            max_height_quarter: arr[2],
-            total_holes: arr[3],
-            coveredness: arr[4],
-            row_transitions: arr[5],
-            depth4: arr[6],
-            dependencies: arr[7],
-            i_dependencies: arr[8],
-            spikes: arr[9],
-            concavity: arr[10],
-            b2b_clear: arr[11],
-            b2b_deficit: arr[12],
-            b2b_diff: arr[13],
-        }
+    pub fn from(arr: [f32; Self::PARAMS], half_well_column: [f32; 5]) -> Self {
+        Self::new(
+            arr[0],
+            arr[1],
+            arr[2],
+            arr[3],
+            arr[4],
+            arr[5],
+            arr[6],
+            arr[7],
+            arr[8],
+            arr[9],
+            arr[10],
+            arr[11],
+            arr[12],
+            arr[13],
+            arr[14],
+            arr[15],
+            half_well_column,
+        )
     }
 
     // new eval, largely copied from cc2 :3 (sorry mk im still learning)
-    pub fn eval(&self, root: &Game, game: &Game, info: &PlacementInfo) -> f32 {
+    pub fn eval(&self, game: &Game, piece: Piece, info: &PlacementInfo) -> f32 {
         // height
         let heights: [i32; 10] = game.board.cols.map(|c| c.height() as _);
 
-        let max_height = *heights.iter().max().unwrap();
+        let max_height = game.board.max_height_col();
         let max_height_half = max_height.max(10) - 10;
         let max_height_quarter = max_height.max(15) - 15;
 
-        // holes
         let total_holes = game
             .board
             .cols
             .iter()
             .map(|&c| {
-                let h = 64 - c.0.leading_zeros();
+                let h = c.height() as u32;
                 let under = (1 << h) - 1;
                 (!c.0 & under).count_ones()
             })
             .sum::<u32>();
 
-        // coveredness
         let mut coveredness = 0;
         for &c in &game.board.cols {
             let h = 64 - c.0.leading_zeros();
@@ -106,7 +124,6 @@ impl Eval {
             }
         }
 
-        // row transitions
         let row_transitions = game
             .board
             .cols
@@ -114,22 +131,18 @@ impl Eval {
             .map(|c| (c[0].0 ^ c[1].0).count_ones())
             .sum::<u32>();
 
-        // 4 line depth
-        let (w_col, w_height) = game
+        let (well_col, well_height) = game
             .board
             .cols
             .iter()
             .enumerate()
             .min_by_key(|&(_, h)| h)
             .unwrap();
-        let almost_full_lines = game
-            .board
-            .cols
+        let almost_full_lines = game.board.cols[0..well_col].iter().fold(!0, |a, b| a & b.0);
+        let almost_full_lines = game.board.cols[well_col + 1..]
             .iter()
-            .enumerate()
-            .filter(|&(i, _)| i != w_col)
-            .fold(!0, |a, (_, b)| a & b.0);
-        let depth4 = (almost_full_lines >> w_height.0).trailing_ones();
+            .fold(almost_full_lines, |a, b| a & b.0);
+        let depth4 = (almost_full_lines >> well_height.0).trailing_ones();
 
         // dependencies, spikes
 
@@ -139,7 +152,7 @@ impl Eval {
         let mut concavity = 0;
 
         for x in 0..10 {
-            if x == w_col {
+            if x == well_col {
                 continue;
             }
 
@@ -153,12 +166,32 @@ impl Eval {
             concavity += a - 2 * b + c;
         }
 
-        // other stuff
-        let b2b_clear = info.spin && info.lines_cleared > 0;
-        let b2b_deficit = game.b2b_deficit;
+        let mut tsd = false;
+        let mut tst = false;
+        let mut waste_t = false;
 
-        // remove this in the future
-        let b2b_diff = game.b2b.saturating_sub(root.b2b);
+        if piece == Piece::T {
+            if info.spin {
+                match info.lines_cleared {
+                    2 => tsd = true,
+                    3 => tst = true,
+                    _ => {}
+                }
+            }
+            if !(tsd || tst) {
+                waste_t = true;
+            }
+        }
+
+        // other stuff
+        let garbage_efficiency = if info.lines_cleared > 0 {
+            if !(info.spin && piece == Piece::T) {
+                return -100000.0;
+            }
+            info.garbage_sent / info.lines_cleared
+        } else {
+            0
+        };
 
         // final part: add some rng so can encourage exploration
 
@@ -173,14 +206,22 @@ impl Eval {
             + self.i_dependencies * i_dependencies as f32
             + self.spikes * spikes as f32
             + self.concavity * concavity as f32
-            + self.b2b_clear * b2b_clear as u8 as f32
-            + self.b2b_deficit * b2b_deficit as f32
-            + self.b2b_diff * b2b_diff as f32;
+            + self.waste_t * waste_t as u8 as f32
+            + self.tst * tst as u8 as f32
+            + self.tsd * tsd as u8 as f32
+            + self.garbage_efficiency * garbage_efficiency as f32
+            + self.well_column[well_col] * depth4 as f32;
+        //+ self.combo * game.combo as f32;
 
-        let mut rng = rand::rng();
-        let noise = 0.03 * rng.random_range(-res.abs()..=res.abs());
+        let noise = {
+            let mut rng = rand::rng();
+            let noise = 0.03 * rng.random_range(-res.abs()..=res.abs());
+            noise
+        };
 
         // higher is better
-        res + noise
+        {
+            res + noise
+        }
     }
 }

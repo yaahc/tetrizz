@@ -13,7 +13,6 @@ enumset = "1.1.6"
 im = "15.1.0"
 itertools = "0.14.0"
 ordered-float = "5.0.0"
-puffin_http = "0.16.1"
 rand = "0.9.1"
 rayon = "1.10.0"
 rustc-hash = "2.1.1"
@@ -30,6 +29,7 @@ overflow-checks = false
 [profile.release]
 codegen-units = 1
 lto = "fat"
+debug = 2
 
 [profile.lol]
 inherits = "release"

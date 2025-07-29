@@ -31,65 +31,33 @@ fn gen_queue(bags: u32) -> (Piece, Vec<Piece>) {
     (queue.remove(0), queue)
 }
 
-pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
-    const GAMES_PLAYED: usize = 4;
-    const MOVES_MADE: usize = 500;
+pub fn eval_fitness(
+    queue: Vec<Piece>,
+    hold: Piece,
+    weights: ([f32; Eval::PARAMS], [f32; 5]),
+) -> f32 {
+    const GAMES_PLAYED: usize = 1;
+    const MOVES_MADE: usize = 50;
     let mut garbage_sent = 0;
+    let mut actual_moves = 0;
 
-    let mut fitnesses: Vec<f32> = vec![];
+    // let mut fitnesses: Vec<f32> = vec![];
     for _ in 0..GAMES_PLAYED {
         let mut test_queue = queue.clone();
         let test_hold = hold;
         let mut game = Game::new(Some(test_hold));
-        let eval = Eval::from(weights);
+        let eval = Eval::from(weights.0, weights.1);
         let mut max: u64 = 0;
         for _ in 0..MOVES_MADE {
-            let loc = search(&game, test_queue.clone(), &eval, 15, 3000);
-            let place_info = game.advance(test_queue[0], loc);
+            let loc = search(&game, test_queue.clone(), &eval, 15, 1000);
+            let info = game.advance(test_queue[0], loc);
             if loc.piece == game.hold {
                 game.hold = test_queue[0];
             }
             test_queue.remove(0);
+            actual_moves += 1;
 
-            // how much garbage was sent
-            if place_info.lines_cleared > 0 {
-                let mut garbage = match place_info.lines_cleared {
-                    // single
-                    1 if !loc.spun => 0,
-                    // double
-                    2 if !loc.spun => 1,
-                    // triple
-                    3 if !loc.spun => 2,
-                    // quad
-                    4 => 4,
-                    // mini-spin single
-                    1 if loc.spun && loc.piece != Piece::T => 0,
-                    // mini-spin double
-                    2 if loc.spun && loc.piece != Piece::T => 1,
-                    // mini-spin triple
-                    3 if loc.spun && loc.piece != Piece::T => 2,
-                    // spin single TODO doesn't yet account for T mini-spins
-                    1 if loc.spun && loc.piece == Piece::T => 2,
-                    // spin double
-                    2 if loc.spun && loc.piece == Piece::T => 4,
-                    // spin triple
-                    3 if loc.spun && loc.piece == Piece::T => 6,
-                    _ => unreachable!(),
-                };
-                if game.b2b > 0 {
-                    garbage += 1
-                }
-                let mut garbage = match garbage {
-                    0 => (1.0 + 1.25 * game.combo as f64).ln().floor(),
-                    _ => garbage as f64 * (1.0 + 0.25 * game.combo as f64),
-                } as u32;
-                // TODO: add garbage clear bonus here, after combo
-                // TODO add all clear bonus
-                if game.board.cols.iter().all(|c| c.0 == 0) {
-                    garbage += 5;
-                }
-                garbage_sent += garbage;
-            }
+            garbage_sent += info.garbage_sent;
 
             if game
                 .board
@@ -109,29 +77,32 @@ pub fn eval_fitness(queue: Vec<Piece>, hold: Piece, weights: [f32; 14]) -> f32 {
         // fitnesses.push(250.0 * max as f32 / MOVES_MADE as f32);
     }
     // fitnesses.iter().sum::<f32>() / GAMES_PLAYED as f32
-    garbage_sent as _
+    dbg!(garbage_sent as f32 / actual_moves as f32)
 }
 
-pub fn normalized(weights: [f32; 14]) -> [f32; 14] {
+pub fn normalized<const N: usize>(weights: [f32; N]) -> [f32; N] {
     let mag = weights.iter().fold(0.0, |a, b| a + b * b).sqrt() / 1000.0;
     weights.map(|x| x / mag)
 }
 
 #[derive(Clone, Debug)]
 pub struct Agent {
-    pub weights: [f32; 14],
+    pub weights: [f32; Eval::PARAMS],
+    pub col_weights: [f32; 5],
     pub fitness: f32,
 }
 
 impl Agent {
     fn new_random() -> Self {
         let mut rng = rand::rng();
-        let mut arr = [0f32; 14];
+        let mut arr = [0f32; Eval::PARAMS];
+        let col_weights = [-100.0, -1000.0, 500.0, 400.0, 300.0];
         for x in &mut arr {
             *x = rng.random_range(-1.0..=1.0);
         }
         Self {
             weights: normalized(arr),
+            col_weights: normalized(col_weights),
             fitness: 0.0,
         }
     }
@@ -145,8 +116,15 @@ impl Agent {
         for (a, &b) in this_weights.iter_mut().zip(other_weights.iter()) {
             *a += b;
         }
+
+        let mut this_col_weights = self.col_weights;
+        let other_col_weights = other.col_weights;
+        for (a, &b) in this_col_weights.iter_mut().zip(other_col_weights.iter()) {
+            *a += b;
+        }
         Some(Self {
             weights: normalized(this_weights),
+            col_weights: normalized(this_col_weights),
             fitness: 9999999.0,
         })
     }
@@ -177,7 +155,7 @@ pub fn run_genetic_algo() {
                     print!("   --- {scol}Started: {start_prev}/{NUM_AGENTS}\x1b[0m\t\t\x1b[1;33mCompleted: {}/{NUM_AGENTS}\x1b[0m\r", *completed.as_ptr());
                     let _ = std::io::stdout().flush();
                 }
-                agent.fitness = eval_fitness(queue.clone(), hold, agent.weights);
+                agent.fitness = eval_fitness(queue.clone(), hold, (agent.weights, agent.col_weights));
                 let completed_prev = completed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| Some(x + 1)).unwrap();
                 unsafe {
                     let scol = if *started.as_ptr() != NUM_AGENTS as u32 { "\x1b[1;33m" } else { "\x1b[1;32m" };

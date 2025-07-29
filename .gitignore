@@ -2,3 +2,6 @@
 tags
 tags.lock
 tags.temp
+flamegraph.svg
+perf.data
+perf.data.old
